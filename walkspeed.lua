@@ -3,27 +3,29 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-
-local walkspeed = 32
-local speed = 1 + walkspeed * 0.05
-
 local enabled = false
 local rocket
+local speedMultiplier = 32 -- you can tweak this
 
--- setup character safely
+-- get proper root part
+local function getRoot(character)
+	return character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+end
+
 local function setupCharacter(character)
 	local humanoid = character:WaitForChild("Humanoid")
+	local root = getRoot(character)
 
-	-- R15 / R6 compatibility
-	local root = character:WaitForChild("HumanoidRootPart")
+	if not root then return end
 
+	-- create BodyPosition
 	rocket = Instance.new("BodyPosition")
-	rocket.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	rocket.MaxForce = Vector3.new(1e6, 1e6, 1e6) -- strong enough to fight gravity
 	rocket.P = 5000
 	rocket.D = 100
 	rocket.Parent = nil
 
-	-- toggle
+	-- toggle flight with C
 	UserInputService.InputBegan:Connect(function(input, gp)
 		if gp then return end
 		if input.KeyCode == Enum.KeyCode.C then
@@ -32,24 +34,16 @@ local function setupCharacter(character)
 		end
 	end)
 
-	-- movement
+	-- flight movement
 	RunService.RenderStepped:Connect(function()
 		if not enabled then return end
-
 		local moveDir = humanoid.MoveDirection
-		if moveDir.Magnitude > 0 then
-			rocket.Position = root.Position + Vector3.new(
-				moveDir.X * speed * 5.4,
-				0,
-				moveDir.Z * speed * 5.4
-			)
-		else
-			rocket.Position = root.Position
-		end
+		local targetPos = root.Position + moveDir * speedMultiplier
+		rocket.Position = Vector3.new(targetPos.X, root.Position.Y, targetPos.Z)
 	end)
 end
 
--- initial load
+-- initial setup
 if player.Character then
 	setupCharacter(player.Character)
 end
