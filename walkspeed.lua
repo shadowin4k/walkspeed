@@ -1,77 +1,58 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("Neverlose Private Speed", "Midnight")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local speed = Window:NewTab("Private Speed NEVERLOSE")
-local rs = speed:NewSection("CFrame Speed")
-rs:NewButton("CFrame Guns FIX", "ButtonInfo", function()
-    for _, v in pairs(game.Players.LocalPlayer.Character:GetChildren()) do
-        if v:IsA("Script") and v.Name ~= "Health" and v.Name ~= "Sound" and v:FindFirstChild("LocalScript") then
-            v:Destroy()
-        end
-    end
-    game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
-        repeat
-            wait()
-        until game.Players.LocalPlayer.Character
-        char.ChildAdded:Connect(function(child)
-            if child:IsA("Script") then 
-                wait(0.1)
-                if child:FindFirstChild("LocalScript") then
-                    child.LocalScript:FireServer()
-                end
-            end
-        end)
-    end)
-end)
-rs:NewButton("CFrame Speed (Z)", "ButtonInfo", function()
-    	repeat
-		wait()
-	until game:IsLoaded()
-	local L_134_ = game:service('Players')
-	local L_135_ = L_134_.LocalPlayer
-	repeat
-		wait()
-	until L_135_.Character
-	local L_136_ = game:service('UserInputService')
-	local L_137_ = game:service('RunService')
-	getgenv().Multiplier = 0.5
-	local L_138_ = true
-	local L_139_
-	L_136_.InputBegan:connect(function(L_140_arg0)
-		if L_140_arg0.KeyCode == Enum.KeyCode.LeftBracket then
-			Multiplier = Multiplier + 0.01
-			print(Multiplier)
-			wait(0.2)
-			while L_136_:IsKeyDown(Enum.KeyCode.LeftBracket) do
-				wait()
-				Multiplier = Multiplier + 0.01
-				print(Multiplier)
-			end
-		end
-		if L_140_arg0.KeyCode == Enum.KeyCode.RightBracket then
-			Multiplier = Multiplier - 0.01
-			print(Multiplier)
-			wait(0.2)
-			while L_136_:IsKeyDown(Enum.KeyCode.RightBracket) do
-				wait()
-				Multiplier = Multiplier - 0.01
-				print(Multiplier)
-			end
-		end
-		if L_140_arg0.KeyCode == Enum.KeyCode.Z then
-			L_138_ = not L_138_
-			if L_138_ == true then
-				repeat
-					game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame + game.Players.LocalPlayer.Character.Humanoid.MoveDirection * Multiplier
-					game:GetService("RunService").Stepped:wait()
-				until L_138_ == false
-			end
+local player = Players.LocalPlayer
+
+local walkspeed = 32
+local speed = 1 + walkspeed * 0.05
+
+local enabled = false
+local rocket
+
+-- setup character safely
+local function setupCharacter(character)
+	local humanoid = character:WaitForChild("Humanoid")
+
+	-- R15 / R6 compatibility
+	local root = character:WaitForChild("HumanoidRootPart")
+
+	rocket = Instance.new("BodyPosition")
+	rocket.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	rocket.P = 5000
+	rocket.D = 100
+	rocket.Parent = nil
+
+	-- toggle
+	UserInputService.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		if input.KeyCode == Enum.KeyCode.C then
+			enabled = not enabled
+			rocket.Parent = enabled and root or nil
 		end
 	end)
-end)
-rs:NewSlider("CFrame Speed ", "SliderInfo", 5, 0, function(s) -- 500 (MaxValue) | 0 (MinValue)
-    getgenv().Multiplier = s
-end)
-rs:NewKeybind("Toggle UI", "KeybindInfo", Enum.KeyCode.V, function()
-	Library.ToggleUI()
-end)
+
+	-- movement
+	RunService.RenderStepped:Connect(function()
+		if not enabled then return end
+
+		local moveDir = humanoid.MoveDirection
+		if moveDir.Magnitude > 0 then
+			rocket.Position = root.Position + Vector3.new(
+				moveDir.X * speed * 5.4,
+				0,
+				moveDir.Z * speed * 5.4
+			)
+		else
+			rocket.Position = root.Position
+		end
+	end)
+end
+
+-- initial load
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+-- respawn handling
+player.CharacterAdded:Connect(setupCharacter)
